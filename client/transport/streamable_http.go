@@ -26,6 +26,17 @@ func WithHTTPHeaders(headers map[string]string) StreamableHTTPCOption {
 	}
 }
 
+func WithHTTPCheckRedirect(maxRedirect int) StreamableHTTPCOption {
+	return func(sc *StreamableHTTP) {
+		sc.httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirect {
+				return fmt.Errorf("stopped after %d redirects", maxRedirect)
+			}
+			return nil
+		}
+	}
+}
+
 // WithHTTPTimeout sets the timeout for a HTTP request and stream.
 func WithHTTPTimeout(timeout time.Duration) StreamableHTTPCOption {
 	return func(sc *StreamableHTTP) {
@@ -137,7 +148,6 @@ func (c *StreamableHTTP) SendRequest(
 	ctx context.Context,
 	request JSONRPCRequest,
 ) (*JSONRPCResponse, error) {
-
 	// Create a combined context that could be canceled when the client is closed
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -235,7 +245,6 @@ func (c *StreamableHTTP) SendRequest(
 // handleSSEResponse processes an SSE stream for a specific request.
 // It returns the final result for the request once received, or an error.
 func (c *StreamableHTTP) handleSSEResponse(ctx context.Context, reader io.ReadCloser) (*JSONRPCResponse, error) {
-
 	// Create a channel for this specific request
 	responseChan := make(chan *JSONRPCResponse, 1)
 
@@ -248,7 +257,6 @@ func (c *StreamableHTTP) handleSSEResponse(ctx context.Context, reader io.ReadCl
 		defer close(responseChan)
 
 		c.readSSE(ctx, reader, func(event, data string) {
-
 			// (unsupported: batching)
 
 			var message JSONRPCResponse
@@ -341,7 +349,6 @@ func (c *StreamableHTTP) readSSE(ctx context.Context, reader io.ReadCloser, hand
 }
 
 func (c *StreamableHTTP) SendNotification(ctx context.Context, notification mcp.JSONRPCNotification) error {
-
 	// Marshal request
 	requestBody, err := json.Marshal(notification)
 	if err != nil {
